@@ -14,6 +14,8 @@ var poniendoVarilla = false
 var mult = 1
 var barras = []
 var varillas = []
+var figuras = []
+figuras.push(new ASDI())
 var fy = 420000
 
 var ecu = 0.003
@@ -128,7 +130,7 @@ function actualizar() {
 		dibujarViga()
 		imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 	} else {
-		alert('fallo')
+		console.log('No se introdujeron los parametros correctos')
 	}
 }
 
@@ -273,22 +275,26 @@ function di(n,k) {
 		as += varillas[i][0][0]
 	}
 	let compresionPura = (0.85*fc*(b*h-as/10000)+fy*as/10000)
-	result.push([-fy*as/10000,0,0])
+	let cphi = compresionPura*0.75*0.65
+	let phi = calcularPhi(varillas)
+	result.push([-fy*as/10000,0,0,-fy*as/10000*0.9,0,0])
 	for (var i = 1; i < n; i++) {
 		let c = paso * i
 		calcularDeformaciones(h,c)
+		let phi = calcularPhi(varillas)
 		let a = pnominal(c)
 		let b = mnominal(c)
 		let o = a[0]+a[1]+a[2]
 		let oo = b[0]+b[1]+b[2]
 		if (!isNaN(o) && !isNaN(oo)) {
-			result.push([o,oo*k,0])
+			result.push([o,oo*k,0, o*phi<cphi ? o*phi : cphi,oo*k*phi,0])
 		}
 	}
-	result.push([compresionPura,0,0])
+	result.push([compresionPura,0,0,compresionPura*0.75*0.65,0,0])
 	return result
 }
 var data = []
+var dataPhi = []
 function didi(n) {
 	let datos1 = b
 	let datos2 = h
@@ -299,7 +305,15 @@ function didi(n) {
 	  x: getCol(g1, 1),
 	  y: getCol(g1, 0),
 	  mode: 'lines',
-	  text: getCol(g1, 2)
+	  text: getCol(g1, 2),
+	  name: 'Nominal'
+	}
+	let trace2 = {
+	  x: getCol(g1, 4),
+	  y: getCol(g1, 3),
+	  mode: 'lines',
+	  text: getCol(g1, 5),
+	  name: 'Nominal-phi'
 	}
 	let layout = {
 	  title:'Diagrama de Interacción Eje X+',
@@ -310,7 +324,7 @@ function didi(n) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1]
+	data = [trace1,trace2]
 	Plotly.newPlot('graficas', data,layout)
 
 
@@ -323,7 +337,15 @@ function didi(n) {
 	  x: getCol(g2, 1),
 	  y: getCol(g2, 0),
 	  mode: 'lines',
-	  text: getCol(g2, 2)
+	  text: getCol(g2, 2),
+	  name: 'Nominal'
+	}
+	trace2 = {
+	  x: getCol(g2, 4),
+	  y: getCol(g2, 3),
+	  mode: 'lines',
+	  text: getCol(g2, 5),
+	  name: 'Nominal-phi'
 	}
 	layout = {
 	  title:'Diagrama de Interacción Eje X-',
@@ -334,7 +356,7 @@ function didi(n) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1]
+	data = [trace1,trace2]
 	Plotly.newPlot('graficas2', data,layout)
 		let uuu = b
 		b = h
@@ -350,7 +372,15 @@ function didi(n) {
 	  x: getCol(g3, 1),
 	  y: getCol(g3, 0),
 	  mode: 'lines',
-	  text: getCol(g3, 2)
+	  text: getCol(g3, 2),
+	  name: 'Nominal'
+	}
+	trace2 = {
+	  x: getCol(g3, 4),
+	  y: getCol(g3, 3),
+	  mode: 'lines',
+	  text: getCol(g3, 5),
+	  name: 'Nominal-phi'
 	}
 	layout = {
 	  title:'Diagrama de Interacción Eje Y+',
@@ -361,7 +391,7 @@ function didi(n) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1]
+	data = [trace1,trace2]
 	Plotly.newPlot('graficas3', data,layout)
 
 	for (var i = 0; i < varillas.length; i++) {
@@ -373,7 +403,15 @@ function didi(n) {
 	  x: getCol(g4, 1),
 	  y: getCol(g4, 0),
 	  mode: 'lines',
-	  text: getCol(g4, 2)
+	  text: getCol(g4, 2),
+	  name: 'Nominal'
+	}
+	trace2 = {
+	  x: getCol(g4, 4),
+	  y: getCol(g4, 3),
+	  mode: 'lines',
+	  text: getCol(g4, 5),
+	  name: 'Nominal-phi'
 	}
 	layout = {
 	  title:'Diagrama de Interacción Eje Y-',
@@ -384,12 +422,16 @@ function didi(n) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1]
+	data = [trace1,trace2]
 	Plotly.newPlot('graficas4', data,layout)
 
 	let l = []
 	let l1 = []
 	let l2 = []
+
+	let ph = []
+	let ph1 = []
+	let ph2 = []
 
 	l.push(getCol(g1, 0))
 	l.push(getCol(g2, 0))
@@ -406,18 +448,29 @@ function didi(n) {
 	l2.push(getCol(g3, 2))
 	l2.push(getCol(g4, 2))
 
-	// for (var i = 0; i < l.length; i++) {
-	// 	l[i].pop()
-	// 	l[i].shift()
-	// 	l1[i].pop()
-	// 	l1[i].shift()
-	// 	l2[i].pop()
-	// 	l2[i].shift()
-	// }
-
 	let d1 = l2[3].concat(l2[2].concat(l1[0].concat(l1[1])))
 	let d2 = l1[3].concat(l1[2].concat(l2[0].concat(l2[1])))
 	let d3 = l[3].concat(l[2].concat(l[0].concat(l[1])))
+
+
+	ph.push(getCol(g1, 3))
+	ph.push(getCol(g2, 3))
+	ph.push(getCol(g3, 3))
+	ph.push(getCol(g4, 3))
+
+	ph1.push(getCol(g1, 4))
+	ph1.push(getCol(g2, 4))
+	ph1.push(getCol(g3, 4))
+	ph1.push(getCol(g4, 4))
+
+	ph2.push(getCol(g1, 5))
+	ph2.push(getCol(g2, 5))
+	ph2.push(getCol(g3, 5))
+	ph2.push(getCol(g4, 5))
+
+	let pph1 = ph2[3].concat(ph2[2].concat(ph1[0].concat(ph1[1])))
+	let pph2 = ph1[3].concat(ph1[2].concat(ph2[0].concat(ph2[1])))
+	let pph3 = ph[3].concat(ph[2].concat(ph[0].concat(ph[1])))
 
 	data=[
 		{
@@ -429,6 +482,18 @@ function didi(n) {
 		showscale: true,
 		opacity: 1,
 		colorbar: {title: {text: 'Carga Axial[KN]'}},
+		}
+	]
+	dataPhi=[
+		{
+		type: 'mesh3d',
+		x: pph1,
+		y: pph2,
+		z: pph3,
+		intensity: pph3,
+		showscale: true,
+		opacity: 1,
+		colorbar: {title: {text: 'Carga Axial[KN] - Phi'}},
 		}
 	]
 	layout = {
@@ -447,7 +512,7 @@ function getCol(matrix, col){
    return column;
 }
 function diagramaDeInteraccion() {
-	didi(200)
+	didi(400)
 	abrirModalDI()
 }
 document.onkeydown = function(evt) {
@@ -463,3 +528,50 @@ document.onkeydown = function(evt) {
     	[].forEach.call(mods, function(mod){ mod.checked = false; })
     }
 };
+function calcularPhi(varillas) {
+	let ephi = 0
+	for (var i = 0; i < varillas.length; i++) {
+		if (varillas[i][3]>ephi && varillas[i][4] < 0) {
+			ephi = varillas[i][3]
+		}
+	}
+	if (ephi < 0.0021) {
+		return 0.65
+	} else if (ephi < 0.005) {
+		return 0.65 + (0.9-0.65)/(0.005-0.0021)*(ephi-0.0021)
+	} else {
+		return 0.9
+	}
+}
+function actualizarModal3D() {
+	let fact = document.getElementById('factSeguridad').checked
+	if (fact) {
+		let layout = {
+		  title:'Cebollita con 4 lados - Phi'
+		}
+		Plotly.react('graficas5', dataPhi,layout)
+	} else {
+		let layout = {
+		  title:'Cebollita con 4 lados'
+		}
+		Plotly.react('graficas5', data,layout)
+	}
+}
+function saveString() {
+	let  a = ''
+	let sepFiguras = '~~~'
+	let sepAtributos = '???'
+	for (var i = 0; i < figuras.length; i++) {
+		a += 'FIGURA'+ i + sepAtributos + b + sepAtributos + h + sepAtributos + dprima + sepAtributos + '\n'
+		for (var k = 0; k < varillas.length; k++) {
+			a += varillas[k].join('===') + '\n'
+		}
+	}
+	download(a,'ASections[DI]-'+ new Date().toLocaleString() +'.txt', 'text/txt')
+}
+function download(text, name, type) {
+	var a = document.getElementById('a')
+	var file = new Blob([text], {type: type})
+	a.href = URL.createObjectURL(file)
+	a.download = name
+}
