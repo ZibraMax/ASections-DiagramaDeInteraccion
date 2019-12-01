@@ -1,13 +1,22 @@
 'use strict'
 //David Arturo Rodriguez Herrera
-
+class ASDI{
+	constructor(b,h,d,varillas,img) {
+		this.b = b
+		this.h = h
+		this.d = d
+		this.varillas = varillas
+		this.img = img
+	}
+}
+var estaGuardada = false
+var figuraActual = 0
 //------------- Variables Globales
-
 const canvas = document.getElementById('canvas')
 const ctx = canvas.getContext('2d')
 const W = canvas.width
 const H = canvas.height
-const margen = 50
+var margen = 15
 var imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 var dev = true
 var poniendoVarilla = false
@@ -15,13 +24,11 @@ var mult = 1
 var barras = []
 var varillas = []
 var figuras = []
-figuras.push(new ASDI())
 var fy = 420000
-
 var ecu = 0.003
 var ey = 0.0021
 var fc = 28000
-
+var presicionDeGrilla = 0.005
 barras[2] = []
 barras[3] = []
 barras[4] = []
@@ -65,6 +72,7 @@ barras[18][1] = 57.3/1000
 
 var barraActual = barras[5]
 document.getElementById(""+5).childNodes[1].classList.add("activo")
+var contenedor = document.getElementById('contenedorSecciones')
 
 var r = barraActual[1]/2
 var colorPrincipal = 'black'
@@ -79,7 +87,7 @@ var dprima = document.getElementById('recubrimiento').value/100
 var coordenadaMaxima = Math.max(b,h)
 //------------- Funciones 
 
-function calcularDeformaciones(h,c) {
+function calcularDeformaciones(c,b,h,dprima,varillas) {
 	for (var i = 0; i < varillas.length; i++) {
 		let barrai = varillas[i][0]
 		let coordX = varillas[i][1]
@@ -90,7 +98,7 @@ function calcularDeformaciones(h,c) {
 		varillas[i][6] = ((h-coordY)-h/2)
 	}
 }
-function pnominal(c) {
+function pnominal(c,b,h,dprima,varillas) {
 	let pc = 0.85*(fc)*b*b1(fc)*c
 	let psp = 0
 	let psn = 0
@@ -100,7 +108,7 @@ function pnominal(c) {
 	}
 	return [pc,psp,psn]
 }
-function mnominal(c) {
+function mnominal(c,b,h,dprima,varillas) {
 	let mnc = -0.85*(fc)*b*b1(fc)*c*(h/2 - b1(fc)*c/2)
 	let msn = 0
 	let msp = 0
@@ -122,6 +130,7 @@ function b1(fc) {
 //------------- Funciones Interfaz Grafica
 
 function actualizar() {
+	varillas = []
 	ctx.clearRect(0,0,W,H)
 	b = parseFloat(document.getElementById('base').value)
 	h = parseFloat(document.getElementById('altura').value)
@@ -130,11 +139,12 @@ function actualizar() {
 		dibujarViga()
 		imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 	} else {
-		console.log('No se introdujeron los parametros correctos')
 	}
+	estaGuardada = false
 }
 
 function dibujarViga() {
+	ctx.clearRect(0,0,W,H)
 	coordenadaMaxima = Math.max(b,h)
 	mult = (W-margen*2)/coordenadaMaxima
 	draw(colorPrincipal, 0, 0, b, 0, ctx)
@@ -149,15 +159,16 @@ function dibujarViga() {
 	drawD('gray', -0.01, h-dprima, b+0.01, h-dprima, ctx)
 	drawD('gray', 0+dprima, h+0.01, 0+dprima, -0.01, ctx)
 
-	let limiteX = (b-dprima)*100
-	let limiteY = (h-dprima)*100
+	let limiteX = (b-dprima)/presicionDeGrilla
+	let limiteY = (h-dprima)/presicionDeGrilla
 
 	indicesMov = []
-	for (let i = dprima*100; i < limiteX+1; i++) {
-		for (var j = dprima*100; j < limiteY+1; j++) {
-			indicesMov.push(((i/100)*mult + margen) +","+ ((W-margen) - (j/100)*mult))
+	for (let i = dprima/presicionDeGrilla; i < limiteX+1; i++) {
+		for (var j = dprima/presicionDeGrilla; j < limiteY+1; j++) {
+			indicesMov.push(((i*presicionDeGrilla)*mult + margen) +","+ ((W-margen) - (j*presicionDeGrilla)*mult))
 		}
 	}
+	imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 }
 
 function draw(color, xi, yi, xf, yf, ctx) {
@@ -205,11 +216,13 @@ function moviendo(event) {
 	  y = parseFloat(u.split(",")[1])
 	  ctx.putImageData(imgDATA,0,0)
 	  ctx.strokeStyle = 'black'
+	  ctx.fillText("("+ (x/mult-margen/mult).toFixed(3) +", "+ (h-y/mult+margen/mult).toFixed(3) +")", event.offsetX - 10 ,event.offsetY -10);
 	  ctx.setLineDash([])
 	  ctx.beginPath()
 	  ctx.arc(x,y,r*mult,0,2*Math.PI)
 	  ctx.stroke()
   }
+  dibujarVarillasActuales(varillas)
 }
 
 function clickk(event) {
@@ -221,17 +234,15 @@ function clickk(event) {
 	  let u = proveNear(x,y)
 	  x = parseFloat(u.split(",")[0])
 	  y = parseFloat(u.split(",")[1])
-	  ctx.setLineDash([])
-	  ctx.strokeStyle = 'black'
-	  ctx.beginPath()
-	  ctx.arc(x,y,r*mult,0,2*Math.PI)
-	  ctx.fill()
-	  imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 	  varillas.push([barraActual,(x-margen)/mult,h-(y-margen)/mult])
+	  imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
+  	estaGuardada = false
   }
+  	dibujarVarillasActuales(varillas)
 }
 function mouseFuera() {
 	ctx.putImageData(imgDATA,0,0)
+	dibujarVarillasActuales(varillas)
 }
 
 function proveNear(x,y) {
@@ -267,7 +278,7 @@ function definirBarra(n) {
 	document.getElementById(""+n).childNodes[1].classList.add("activo")
 	r = barraActual[1]/2
 }
-function di(n,k) {
+function di(n,k,b,h,varillas,dprima) {
 	let paso = h/n
 	let result = []
 	let as = 0
@@ -280,12 +291,12 @@ function di(n,k) {
 	result.push([-fy*as/10000,0,0,-fy*as/10000*0.9,0,0])
 	for (var i = 1; i < n; i++) {
 		let c = paso * i
-		calcularDeformaciones(h,c)
+		calcularDeformaciones(c,b,h,dprima,varillas)
 		let phi = calcularPhi(varillas)
-		let a = pnominal(c)
-		let b = mnominal(c)
+		let a = pnominal(c,b,h,dprima,varillas)
+		let p = mnominal(c,b,h,dprima,varillas)
 		let o = a[0]+a[1]+a[2]
-		let oo = b[0]+b[1]+b[2]
+		let oo = p[0]+p[1]+p[2]
 		if (!isNaN(o) && !isNaN(oo)) {
 			result.push([o,oo*k,0, o*phi<cphi ? o*phi : cphi,oo*k*phi,0])
 		}
@@ -295,12 +306,14 @@ function di(n,k) {
 }
 var data = []
 var dataPhi = []
-function didi(n) {
-	let datos1 = b
-	let datos2 = h
-	let datos3 = varillas
+function didi(n,b,h,ffff,dprima) {
+	if (estaGuardada) {
+	} else {
+		agregarSeccion()
+	}
+	const fuck = ffff
 	poniendoVarilla = false
-	let g1 = di(n,1)
+	let g1 = di(n,1,b,h,fuck,dprima)
 	let trace1 = {
 	  x: getCol(g1, 1),
 	  y: getCol(g1, 0),
@@ -326,13 +339,11 @@ function didi(n) {
 	}
 	data = [trace1,trace2]
 	Plotly.newPlot('graficas', data,layout)
-
-
-	for (var i = 0; i < varillas.length; i++) {
-		let antiguoy = varillas[i][2]
-		varillas[i][2] = h - antiguoy
+	for (var i = 0; i < fuck.length; i++) {
+		let antiguoy = fuck[i][2]
+		fuck[i][2] = h - antiguoy
 	}
-	let g2 = di(n,-1)
+	let g2 = di(n,-1,b,h,fuck,dprima)
 	trace1 = {
 	  x: getCol(g2, 1),
 	  y: getCol(g2, 0),
@@ -358,16 +369,16 @@ function didi(n) {
 	}
 	data = [trace1,trace2]
 	Plotly.newPlot('graficas2', data,layout)
-		let uuu = b
-		b = h
-		h = uuu
-	for (var i = 0; i < varillas.length; i++) {
-		let antiguoy = varillas[i][2]
-		let antiguox = varillas[i][1]
-		varillas[i][2] = antiguox
-		varillas[i][1] = antiguoy
+	let uuu = b
+	b = h
+	h = uuu
+	for (var i = 0; i < fuck.length; i++) {
+		let antiguoy = fuck[i][2]
+		let antiguox = fuck[i][1]
+		fuck[i][2] = antiguox
+		fuck[i][1] = antiguoy
 	}
-	let g3 = di(n,1)
+	let g3 = di(n,1,b,h,fuck,dprima)
 	trace1 = {
 	  x: getCol(g3, 1),
 	  y: getCol(g3, 0),
@@ -393,12 +404,11 @@ function didi(n) {
 	}
 	data = [trace1,trace2]
 	Plotly.newPlot('graficas3', data,layout)
-
-	for (var i = 0; i < varillas.length; i++) {
-		let antiguoy = varillas[i][2]
-		varillas[i][2] = h - antiguoy
+	for (var i = 0; i < fuck.length; i++) {
+		let antiguoy = fuck[i][2]
+		fuck[i][2] = h - antiguoy
 	}
-	let g4 = di(n,-1)
+	let g4 = di(n,-1,b,h,fuck,dprima)
 	trace1 = {
 	  x: getCol(g4, 1),
 	  y: getCol(g4, 0),
@@ -424,7 +434,6 @@ function didi(n) {
 	}
 	data = [trace1,trace2]
 	Plotly.newPlot('graficas4', data,layout)
-
 	let l = []
 	let l1 = []
 	let l2 = []
@@ -500,9 +509,18 @@ function didi(n) {
 	  title:'Cebollita con 4 lados'
 	}
 	Plotly.newPlot('graficas5', data,layout)
-	b = datos1
-	h = datos2
-	varillas = datos3
+	for (var i = 0; i < fuck.length; i++) {
+		let antiguoy = fuck[i][2]
+		let antiguox = fuck[i][1]
+		fuck[i][2] = antiguox
+		fuck[i][1] = antiguoy
+	}
+	for (var i = 0; i < fuck.length; i++) {
+		let antiguoy = fuck[i][2]
+		let antiguox = fuck[i][1]
+		fuck[i][2] = b - antiguoy
+		fuck[i][1] = h - antiguox
+	}
 }
 function getCol(matrix, col){
    var column = [];
@@ -512,7 +530,11 @@ function getCol(matrix, col){
    return column;
 }
 function diagramaDeInteraccion() {
-	didi(400)
+	let putasMierdas = []
+	for (var i = 0; i < varillas.length; i++) {
+		putasMierdas.push(varillas[i])
+	}
+	didi(50,b,h,putasMierdas,dprima)
 	abrirModalDI()
 }
 document.onkeydown = function(evt) {
@@ -526,6 +548,8 @@ document.onkeydown = function(evt) {
     if (isEscape) {
     	var mods = document.querySelectorAll('.modal > [type=checkbox]');
     	[].forEach.call(mods, function(mod){ mod.checked = false; })
+    	data = []
+		dataPhi = []
     }
 };
 function calcularPhi(varillas) {
@@ -557,17 +581,17 @@ function actualizarModal3D() {
 		Plotly.react('graficas5', data,layout)
 	}
 }
+let sepAtributos = '???'
 function saveString() {
-	let  a = ''
-	let sepFiguras = '~~~'
-	let sepAtributos = '???'
+	let a = ''
 	for (var i = 0; i < figuras.length; i++) {
-		a += 'FIGURA'+ i + sepAtributos + b + sepAtributos + h + sepAtributos + dprima + sepAtributos + '\n'
+		a += 'FIGURA'+ i + sepAtributos + figuras[i].b + sepAtributos + figuras[i].h + sepAtributos + figuras[i].d + sepAtributos + figuras[i].img + sepAtributos + '\n'
 		for (var k = 0; k < varillas.length; k++) {
-			a += varillas[k].join('===') + '\n'
+			a += figuras[i].varillas[k].join('===') + '\n'
 		}
+		a += '****'
 	}
-	download(a,'ASections[DI]-'+ new Date().toLocaleString() +'.txt', 'text/txt')
+	download(a,'ASections[DI]-['+ new Date().toLocaleString() +'].txt', 'text/txt')
 }
 function download(text, name, type) {
 	var a = document.getElementById('a')
@@ -575,3 +599,140 @@ function download(text, name, type) {
 	a.href = URL.createObjectURL(file)
 	a.download = name
 }
+function agregarSeccion() {
+	let data = canvas.toDataURL()
+	let img = new Image()
+	img.src = data
+	let nuevp = new ASDI(b,h,dprima,varillas,data)
+	figuras.push(nuevp)
+	img.onload = function () {
+		agregarImagenSeccion(this,'Col_' + figuras.length,figuras.length-1)
+	}
+	estaGuardada = true
+}
+function agregarImagenSeccion(img,nameSec,u) {
+	var canvas = document.createElement('canvas')
+	var ctx = canvas.getContext('2d')
+	canvas.width = 50
+	canvas.height = 50
+	ctx.drawImage(img, 0, 0, 50, 50)
+	let data = canvas.toDataURL()
+	var myImage = new Image()
+	myImage.src = data
+	myImage.onload = function () {
+		let a = document.createElement('div')
+		a.classList.add('boxE')
+		let b = document.createElement('button')
+		b.classList.add('btn')
+		b.classList.add('btn-white')
+		b.classList.add('btn-animation-1')
+		b.setAttribute("onclick", 'cargarFigura(' + (u) + ')');
+		let c = myImage
+		c.classList.add('boxE')
+		b.innerHTML = nameSec
+		b.appendChild(c)
+		a.appendChild(b)
+	   	contenedor.appendChild(a)
+	}
+}
+function agregarImagenSeccion2(img,nameSec,u) {
+	let imgen = new Image()
+	imgen.src = img
+	imgen.onload = function () {
+		var canvas = document.createElement('canvas')
+		var ctx = canvas.getContext('2d')
+		canvas.width = 50
+		canvas.height = 50
+		ctx.drawImage(imgen, 0, 0, 50, 50)
+		let data = canvas.toDataURL()
+		var myImage = new Image()
+		myImage.src = data
+		myImage.onload = function () {
+			let a = document.createElement('div')
+			a.classList.add('boxE')
+			let b = document.createElement('button')
+			b.classList.add('btn')
+			b.classList.add('btn-white')
+			b.classList.add('btn-animation-1')
+			b.setAttribute("onclick", 'cargarFigura(' + (u) + ')');
+			let c = myImage
+			c.classList.add('boxE')
+			b.innerHTML = nameSec
+			b.appendChild(c)
+			a.appendChild(b)
+		   	contenedor.appendChild(a)
+		}
+	}
+}
+function dibujarSecciones() {
+	for (var i = 0; i < figuras.length; i++) {
+		let ttt = new Image()
+		ttt.src = figuras[i].img
+		ttt.onload = function () {
+			agregarImagenSeccion(ttt,'Col_'+(i+1),i)
+		}
+	}
+}
+function cargarFigura(i) {
+	figuraActual = i
+	coordenadaMaxima = -999999999999999
+	document.getElementById('base').value = figuras[figuraActual].b
+	document.getElementById('altura').value = figuras[figuraActual].h
+	document.getElementById('recubrimiento').value = figuras[figuraActual].d*100
+	actualizar()
+	varillas = figuras[figuraActual].varillas
+	dibujarVarillasActuales(varillas)
+	estaGuardada = true
+}
+function dibujarVarillasActuales(varillas) {
+	for (var i = 0; i < varillas.length; i++) {
+		ctx.strokeStyle = 'black'
+		ctx.setLineDash([])
+		ctx.beginPath()
+		let x = varillas[i][1]*mult+margen
+		let y = (h-varillas[i][2])*mult+margen
+		let r = varillas[i][0][1]/2*mult
+		ctx.arc(x,y,r,0,2*Math.PI)
+		ctx.fill()
+	}
+}
+function settings() {
+	var mods = document.querySelectorAll('#modal_3');
+	[].forEach.call(mods, function(mod){ mod.checked = true; });
+}
+function saveSettings() {
+	margen = parseFloat(document.getElementById('margen').value)
+	presicionDeGrilla = parseFloat(document.getElementById('grilla').value)
+	fy = parseFloat(document.getElementById('fy').value)
+	ecu = parseFloat(document.getElementById('ecu').value)
+	ey = parseFloat(document.getElementById('ey').value)
+	fc = parseFloat(document.getElementById('fc').value)
+	dibujarViga()
+	dibujarVarillasActuales()
+}
+var fileInput = document.getElementById("archivo"),
+readFile = function () {
+var reader = new FileReader();
+reader.onload = function () {
+var g = reader.result.split("****");
+let init = figuras.length
+for (var i = 0; i < g.length - 1; i++) {
+		let base = parseFloat(g[i].split('\n')[0].split(sepAtributos)[1])
+		let altura = parseFloat(g[i].split('\n')[0].split(sepAtributos)[2])
+		let recubrimiento = parseFloat(g[i].split('\n')[0].split(sepAtributos)[3])
+		let image = g[i].split('\n')[0].split(sepAtributos)[4]
+		let varillasPuestas = []
+		for (var k = 1; k < g[i].split('\n').length-1; k++) {
+			let area = parseFloat(g[i].split('\n')[k].split('===')[0].split(',')[0])
+			let diam = parseFloat(g[i].split('\n')[k].split('===')[0].split(',')[1])
+			let x = parseFloat(g[i].split('\n')[k].split('===')[1])
+			let y = parseFloat(g[i].split('\n')[k].split('===')[2])
+			varillasPuestas.push([[area,diam],x,y])
+		}
+		figuras.push(new ASDI(base,altura,recubrimiento,varillasPuestas,image))
+		agregarImagenSeccion2(image,'Col_'+(init+i+1),init+i)
+	}
+};
+reader.readAsBinaryString(fileInput.files[0]);
+};
+document.getElementById("archivo").addEventListener('change', readFile);

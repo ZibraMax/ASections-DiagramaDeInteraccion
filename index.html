@@ -19,7 +19,9 @@
 			.box{
 
 			}
-
+			.boxE{
+				width: 50px;
+			}
 			.btn:link,
 			.btn:visited{
 			  text-decoration: none;
@@ -100,64 +102,64 @@
 				background-color: gray
 			}
 			.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-}
+			  position: relative;
+			  display: inline-block;
+			  width: 60px;
+			  height: 34px;
+			}
 
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+			.switch input { 
+			  opacity: 0;
+			  width: 0;
+			  height: 0;
+			}
 
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  -webkit-transition: .4s;
-  transition: .4s;
-}
+			.slider {
+			  position: absolute;
+			  cursor: pointer;
+			  top: 0;
+			  left: 0;
+			  right: 0;
+			  bottom: 0;
+			  background-color: #ccc;
+			  -webkit-transition: .4s;
+			  transition: .4s;
+			}
 
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  -webkit-transition: .4s;
-  transition: .4s;
-}
+			.slider:before {
+			  position: absolute;
+			  content: "";
+			  height: 26px;
+			  width: 26px;
+			  left: 4px;
+			  bottom: 4px;
+			  background-color: white;
+			  -webkit-transition: .4s;
+			  transition: .4s;
+			}
 
-input:checked + .slider {
-  background-color: #2196F3;
-}
+			input:checked + .slider {
+			  background-color: #2196F3;
+			}
 
-input:focus + .slider {
-  box-shadow: 0 0 1px #2196F3;
-}
+			input:focus + .slider {
+			  box-shadow: 0 0 1px #2196F3;
+			}
 
-input:checked + .slider:before {
-  -webkit-transform: translateX(26px);
-  -ms-transform: translateX(26px);
-  transform: translateX(26px);
-}
+			input:checked + .slider:before {
+			  -webkit-transform: translateX(26px);
+			  -ms-transform: translateX(26px);
+			  transform: translateX(26px);
+			}
 
-/* Rounded sliders */
-.slider.round {
-  border-radius: 34px;
-}
+			/* Rounded sliders */
+			.slider.round {
+			  border-radius: 34px;
+			}
 
-.slider.round:before {
-  border-radius: 50%;
-}
+			.slider.round:before {
+			  border-radius: 50%;
+			}
 		</style>
 		<title>ASections - Diagrama de Interacción</title>
 		<link rel="stylesheet" href="picnic.min.css">
@@ -188,11 +190,20 @@ input:checked + .slider:before {
 				    <input id="base" class="button stack icon-picture" placeholder="Base (b) [m]" onchange="actualizar()"></input>
 				    <input id="altura" class="button stack icon-picture" placeholder="Altura (h) [m]" onchange="actualizar()"></input>
 				    <input id="recubrimiento" class="button stack icon-picture" placeholder="Recubrimiento (d') [cm]" onchange="actualizar()"></input>
+				    <div>
+					    <div style="height: 160px; margin-top: 15px" class="stack icon-picture">
+					    	<div class="container" style="max-height: 100%; overflow-y: scroll; align-items: left; justify-content: left"  id="contenedorSecciones">
+							</div>
+					    </div>
+				    </div>
 				    <button id="varilla" class="button stack icon-picture" onclick="agregarVarilla()">Agregar Varilla</button>
+				    <button id="txt6" class="button stack icon-picture" onclick="agregarSeccion()">Guardar Seccion</button>
 				    <button id="txt5" class="button stack icon-picture" onclick="diagramaDeInteraccion()">Diagrama de Interaccion</button>
-				    <a href="" id="a" onclick="saveString()" class="button stack icon-picture">Click aqui para descargar tu figura como txt</a>
+				    <a id="a" onclick="saveString()" class="button stack icon-picture">Click aqui para descargar tu figura como txt</a>
+				    <a id="a" onclick="settings()" class="button stack icon-picture">Configuraciones</a>
+				    <input id="archivo" type="file" class="button stack icon-picture"></input>
 				    <div style="float: bottom;">
-				    <article class="card">
+				    <!--<article class="card">
 				      <header>
 				        <p>Creado y desarrollado por: Arturo Rodriguez</p>
 				      </header>
@@ -204,6 +215,7 @@ input:checked + .slider:before {
 				        <a href="https://github.com/ZibraMax/inertiamoment/" target="_blank">GitHub</a>
 				      </footer>
 				    </article>
+				-->
 				    </div>
 				</div>
 			</div>
@@ -305,8 +317,29 @@ input:checked + .slider:before {
 	          </footer>
 	        </article>
 	      </div>
+	      <div class="modal" style="overflow: hidden;">
+	    	<input id="modal_3" type="checkbox" />
+	        <label for="modal_3" class="overlay"></label>
+	        <article>
+	          <header>
+	            <h3>Configuraciones</h3>
+	            <label for="modal_3" class="close">&times;</label>
+	          </header>
+	          <section class="content" style="width: 700px;">
+	          	Esfuerza ultimo a compresion de concreto (f'c) [KPa]<input type="number" id="fc" value="28000">
+	          	Esfuerzo de fluencia del refuerzo (fy) [KPa]<input type="number" id="fy" value="420000">
+	          	Deformacion Ultima de concreto (ecu) [-]<input type="number" id="ecu" value="0.003">
+	          	Deformacion de fluencia del refuerzo (ey) [-]<input type="number" id="ey" value="0.0021">
+	          	Presicion de la grilla de dibujo [m]<input type="number" id="grilla" value="0.01">
+	          	Margen de dibujo [pixeles]<input type="number" id="margen" value="15">
+	          </section>
+	          <footer>
+	            <a class="button" href="#" onclick="var mods = document.querySelectorAll('.modal > [type=checkbox]');
+	          [].forEach.call(mods, function(mod){ mod.checked = false; }); saveSettings()">Aceptar</a>
+	          </footer>
+	        </article>
+	      </div>
 	      <script src="ASections_API.js"></script>
-		<script src="ASDI.js"></script>
 		<script type="text/javascript" src="main.js"></script>
 	</body>
 </html>
