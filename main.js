@@ -1,4 +1,4 @@
-'use strict'
+'use-strict'
 //David Arturo Rodriguez Herrera
 class ASDI{
 	constructor(b,h,d,varillas,img) {
@@ -9,6 +9,7 @@ class ASDI{
 		this.img = img
 	}
 }
+var numeroBarraActual = 5
 var estaGuardada = false
 var figuraActual = 0
 //------------- Variables Globales
@@ -16,7 +17,7 @@ const canvas = document.getElementById('canvas')
 const ctx = canvas.getContext('2d')
 const W = canvas.width
 const H = canvas.height
-var margen = 15
+var margen = 30
 var imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
 var dev = true
 var poniendoVarilla = false
@@ -28,7 +29,8 @@ var fy = 420000
 var ecu = 0.003
 var ey = 0.0021
 var fc = 28000
-var presicionDeGrilla = 0.005
+var cuantia = 0.0
+var presicionDeGrilla = 0.01
 barras[2] = []
 barras[3] = []
 barras[4] = []
@@ -47,7 +49,7 @@ barras[2][0] = 0.32
 barras[3][0] = 0.71
 barras[4][0] = 1.29
 barras[5][0] = 1.99
-barras[6][0] = 2.84
+barras[6][0] = 2.86
 barras[7][0] = 3.87
 barras[8][0] = 5.1
 barras[9][0] = 6.45
@@ -69,6 +71,17 @@ barras[10][1] = 32.3/1000
 barras[11][1] = 35.8/1000
 barras[14][1] = 43/1000
 barras[18][1] = 57.3/1000
+
+function buscarVarillaPorDiametro(diam) {
+	for (var i = 0; i < barras.length; i++) {
+		if (barras[i] != undefined) {
+			if (barras[i][1] == diam) {
+				return i
+			}
+		}
+	}
+	return -1
+}
 
 var barraActual = barras[5]
 document.getElementById(""+5).childNodes[1].classList.add("activo")
@@ -211,21 +224,24 @@ function moviendo(event) {
   if (poniendoVarilla) {
 	  let xr = x
 	  let yr = y
+
 	  let u = proveNear(x,y)
 	  x = parseFloat(u.split(",")[0])
 	  y = parseFloat(u.split(",")[1])
 	  ctx.putImageData(imgDATA,0,0)
 	  ctx.strokeStyle = 'black'
-	  ctx.fillText("("+ (x/mult-margen/mult).toFixed(3) +", "+ (h-y/mult+margen/mult).toFixed(3) +")", event.offsetX - 10 ,event.offsetY -10);
+	  ctx.fillText("("+ (x/mult-margen/mult).toFixed(3) +", "+ (Math.max(b,h)-y/mult+margen/mult).toFixed(3) +")", x - 10 ,y -10);
 	  ctx.setLineDash([])
 	  ctx.beginPath()
 	  ctx.arc(x,y,r*mult,0,2*Math.PI)
 	  ctx.stroke()
+  	dibujarVarillasActuales(varillas)
   }
-  dibujarVarillasActuales(varillas)
 }
 
 function clickk(event) {
+	let g = varillas
+
   let x = event.offsetX
   let y = event.offsetY
   if (poniendoVarilla) {
@@ -234,10 +250,13 @@ function clickk(event) {
 	  let u = proveNear(x,y)
 	  x = parseFloat(u.split(",")[0])
 	  y = parseFloat(u.split(",")[1])
-	  varillas.push([barraActual,(x-margen)/mult,h-(y-margen)/mult])
-	  imgDATA = ctx.getImageData(0,0,canvas.width,canvas.height)
+	  let varillaNueva = [barraActual,(x-margen)/mult,Math.max(b,h)-(y-margen)/mult]
+	  varillaNueva['n'] = numeroBarraActual
+	  varillas.push(varillaNueva)
   	estaGuardada = false
   }
+  actualizar()
+	varillas = g
   	dibujarVarillasActuales(varillas)
 }
 function mouseFuera() {
@@ -272,6 +291,7 @@ function abrirModalDI() {
 function definirBarra(n) {
 	let g = [2,3,4,5,6,7,8,9,10,11,14,18]
 	barraActual = barras[n]
+	numeroBarraActual = n
 	for (var i = 0; i < g.length; i++) {
 		document.getElementById(""+g[i]).childNodes[1].classList.remove("activo")
 	}
@@ -313,7 +333,34 @@ function didi(n,b,h,ffff,dprima) {
 	}
 	const fuck = ffff
 	poniendoVarilla = false
+
 	let g1 = di(n,1,b,h,fuck,dprima)
+	let pcontrol = ptsControl(b,h,dprima,fuck,1)
+
+	let tracepcontrol = {
+	  x: getCol(pcontrol, 1),
+	  y: getCol(pcontrol, 0),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 2),
+	  name: 'Puntos Control',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
+	let tracepcontrolPhi = {
+	  x: getCol(pcontrol, 4),
+	  y: getCol(pcontrol, 3),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 5),
+	  name: 'Puntos Control - Phi',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
 	let trace1 = {
 	  x: getCol(g1, 1),
 	  y: getCol(g1, 0),
@@ -337,13 +384,40 @@ function didi(n,b,h,ffff,dprima) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1,trace2]
+	data = [tracepcontrol,tracepcontrolPhi,trace1,trace2]
 	Plotly.newPlot('graficas', data,layout)
 	for (var i = 0; i < fuck.length; i++) {
 		let antiguoy = fuck[i][2]
 		fuck[i][2] = h - antiguoy
 	}
 	let g2 = di(n,-1,b,h,fuck,dprima)
+
+	pcontrol = ptsControl(b,h,dprima,fuck,-1)
+
+	tracepcontrol = {
+	  x: getCol(pcontrol, 1),
+	  y: getCol(pcontrol, 0),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 2),
+	  name: 'Puntos Control',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
+	tracepcontrolPhi = {
+	  x: getCol(pcontrol, 4),
+	  y: getCol(pcontrol, 3),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 5),
+	  name: 'Puntos Control - Phi',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
 	trace1 = {
 	  x: getCol(g2, 1),
 	  y: getCol(g2, 0),
@@ -367,7 +441,7 @@ function didi(n,b,h,ffff,dprima) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1,trace2]
+	data = [tracepcontrol,tracepcontrolPhi,trace1,trace2]
 	Plotly.newPlot('graficas2', data,layout)
 	let uuu = b
 	b = h
@@ -379,6 +453,33 @@ function didi(n,b,h,ffff,dprima) {
 		fuck[i][1] = antiguoy
 	}
 	let g3 = di(n,1,b,h,fuck,dprima)
+
+	pcontrol = ptsControl(b,h,dprima,fuck,1)
+
+	tracepcontrol = {
+	  x: getCol(pcontrol, 1),
+	  y: getCol(pcontrol, 0),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 2),
+	  name: 'Puntos Control',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
+	tracepcontrolPhi = {
+	  x: getCol(pcontrol, 4),
+	  y: getCol(pcontrol, 3),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 5),
+	  name: 'Puntos Control - Phi',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
 	trace1 = {
 	  x: getCol(g3, 1),
 	  y: getCol(g3, 0),
@@ -402,13 +503,38 @@ function didi(n,b,h,ffff,dprima) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1,trace2]
+	data = [tracepcontrol,tracepcontrolPhi,trace1,trace2]
 	Plotly.newPlot('graficas3', data,layout)
 	for (var i = 0; i < fuck.length; i++) {
 		let antiguoy = fuck[i][2]
 		fuck[i][2] = h - antiguoy
 	}
 	let g4 = di(n,-1,b,h,fuck,dprima)
+	pcontrol = ptsControl(b,h,dprima,fuck,-1)
+
+	tracepcontrol = {
+	  x: getCol(pcontrol, 1),
+	  y: getCol(pcontrol, 0),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 2),
+	  name: 'Puntos Control',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
+
+	tracepcontrolPhi = {
+	  x: getCol(pcontrol, 4),
+	  y: getCol(pcontrol, 3),
+	  mode: 'lines',
+	  text: getCol(pcontrol, 5),
+	  name: 'Puntos Control - Phi',
+	  line: {
+	    dash: 'dot',
+	    width: 4
+	  }
+	}
 	trace1 = {
 	  x: getCol(g4, 1),
 	  y: getCol(g4, 0),
@@ -432,7 +558,7 @@ function didi(n,b,h,ffff,dprima) {
 	  	title:'Carga Axial [KN]'
 	  }
 	}
-	data = [trace1,trace2]
+	data = [tracepcontrol,tracepcontrolPhi,trace1,trace2]
 	Plotly.newPlot('graficas4', data,layout)
 	let l = []
 	let l1 = []
@@ -534,7 +660,7 @@ function diagramaDeInteraccion() {
 	for (var i = 0; i < varillas.length; i++) {
 		putasMierdas.push(varillas[i])
 	}
-	didi(50,b,h,putasMierdas,dprima)
+	didi(100,b,h,putasMierdas,dprima)
 	abrirModalDI()
 }
 document.onkeydown = function(evt) {
@@ -586,12 +712,12 @@ function saveString() {
 	let a = ''
 	for (var i = 0; i < figuras.length; i++) {
 		a += 'FIGURA'+ i + sepAtributos + figuras[i].b + sepAtributos + figuras[i].h + sepAtributos + figuras[i].d + sepAtributos + figuras[i].img + sepAtributos + '\n'
-		for (var k = 0; k < varillas.length; k++) {
+		for (var k = 0; k < figuras[i].varillas.length; k++) {
 			a += figuras[i].varillas[k].join('===') + '\n'
 		}
 		a += '****'
 	}
-	download(a,'ASections[DI]-['+ new Date().toLocaleString() +'].txt', 'text/txt')
+	download(a,'ASections[DI]-['+ new Date().toLocaleString() +'].ase', 'text/ase')
 }
 function download(text, name, type) {
 	var a = document.getElementById('a')
@@ -685,16 +811,42 @@ function cargarFigura(i) {
 	estaGuardada = true
 }
 function dibujarVarillasActuales(varillas) {
+	let as = 0
 	for (var i = 0; i < varillas.length; i++) {
 		ctx.strokeStyle = 'black'
 		ctx.setLineDash([])
 		ctx.beginPath()
 		let x = varillas[i][1]*mult+margen
-		let y = (h-varillas[i][2])*mult+margen
+		let y = (Math.max(b,h)-varillas[i][2])*mult+margen
 		let r = varillas[i][0][1]/2*mult
+		ctx.fillText('#' + varillas[i]['n'],x-5,y-r-4)
+		ctx.shadowBlur = 3
+		ctx.shadowColor = 'black'
+		ctx.shadowOffsetX = 3
+		ctx.shadowOffsetY = 3
 		ctx.arc(x,y,r,0,2*Math.PI)
 		ctx.fill()
+		ctx.shadowBlur = 0
+		ctx.shadowColor = 'black'
+		ctx.shadowOffsetX = 0
+		ctx.shadowOffsetY = 0
+		as += varillas[i][0][0]/10000
 	}
+	cuantia = as/b/h
+	if (cuantia < 0.01 || cuantia > 0.04) {
+		ctx.fillStyle = 'red'
+		ctx.beginPath()
+		let textoCuantia = 'ρ = ' + parseFloat(cuantia).toFixed(4) + ', cuantía fuera del limite'
+		ctx.fillText(textoCuantia,10,10)
+		ctx.fill()
+	} else{
+		ctx.beginPath()
+		ctx.fillStyle = '#00cd00'
+		let textoCuantia = 'ρ = ' + parseFloat(cuantia).toFixed(4)
+		ctx.fillText(textoCuantia,10,10)
+		ctx.fill()
+	}
+	ctx.fillStyle = 'black'
 }
 function settings() {
 	var mods = document.querySelectorAll('#modal_3');
@@ -708,7 +860,7 @@ function saveSettings() {
 	ey = parseFloat(document.getElementById('ey').value)
 	fc = parseFloat(document.getElementById('fc').value)
 	dibujarViga()
-	dibujarVarillasActuales()
+	dibujarVarillasActuales(varillas)
 }
 var fileInput = document.getElementById("archivo"),
 readFile = function () {
@@ -727,7 +879,9 @@ for (var i = 0; i < g.length - 1; i++) {
 			let diam = parseFloat(g[i].split('\n')[k].split('===')[0].split(',')[1])
 			let x = parseFloat(g[i].split('\n')[k].split('===')[1])
 			let y = parseFloat(g[i].split('\n')[k].split('===')[2])
-			varillasPuestas.push([[area,diam],x,y])
+			let nuevaVarillaAponer = [[area,diam],x,y]
+			nuevaVarillaAponer['n'] = buscarVarillaPorDiametro(diam)
+			varillasPuestas.push(nuevaVarillaAponer)
 		}
 		figuras.push(new ASDI(base,altura,recubrimiento,varillasPuestas,image))
 		agregarImagenSeccion2(image,'Col_'+(init+i+1),init+i)
@@ -736,3 +890,204 @@ for (var i = 0; i < g.length - 1; i++) {
 reader.readAsBinaryString(fileInput.files[0]);
 };
 document.getElementById("archivo").addEventListener('change', readFile);
+
+function ptsControl(b,h,dprima,varillas,k) {
+	let d = Math.max(b,h)
+	let as = 0
+	for (var i = 0; i < varillas.length; i++) {
+		as += varillas[i][0][0]
+		d = Math.min(d, varillas[i][1])
+	}
+	let compresionPura = (0.85*fc*(b*h-as/10000)+fy*as/10000)
+	let cphi = compresionPura*0.75*0.65
+	let p1 = [compresionPura,0,0,compresionPura*0.75*0.65,0,0]
+	let c2 = ecu*(h-d)/(ecu+ey)
+	calcularDeformaciones(c2,b,h,dprima,varillas)
+	let phi = calcularPhi(varillas)
+	let a = pnominal(c2,b,h,dprima,varillas)
+	let p = mnominal(c2,b,h,dprima,varillas)
+	let o = a[0]+a[1]+a[2]
+	let oo = p[0]+p[1]+p[2]
+	let p2 = [o,oo*k,0, o*phi<cphi ? o*phi : cphi,oo*k*phi,0]
+	let c3 = ecu*(h-d)/(ecu+0.005)
+	calcularDeformaciones(c3,b,h,dprima,varillas)
+	phi = calcularPhi(varillas)
+	a = pnominal(c3,b,h,dprima,varillas)
+	p = mnominal(c3,b,h,dprima,varillas)
+	o = a[0]+a[1]+a[2]
+	oo = p[0]+p[1]+p[2]
+	let p3 = [o,oo*k,0, o*phi<cphi ? o*phi : cphi,oo*k*phi,0]
+	let c4 = encontrarCVIGA(b,h,dprima,varillas)
+	calcularDeformaciones(c4,b,h,dprima,varillas)
+	phi = calcularPhi(varillas)
+	a = pnominal(c4,b,h,dprima,varillas)
+	p = mnominal(c4,b,h,dprima,varillas)
+	o = a[0]+a[1]+a[2]
+	oo = p[0]+p[1]+p[2]
+	let p4 = [o,oo*k,0, o*phi<cphi ? o*phi : cphi,oo*k*phi,0]
+	let p5 = [-fy*as/10000,0,0,-fy*as/10000*0.9,0,0]
+	return [p1,p2,p3,p4,p5]
+}
+
+function encontrarCVIGA(b,h,dprima,varillas) {
+	let x0 = 0.000001
+	let xf = h
+	let xr = (xf +x0)/2
+	for (var i = 0; i < 100; i++) {
+		let fx0 = cargaAxial(x0,b,h,dprima,varillas)
+		let fxf = cargaAxial(xf,b,h,dprima,varillas)
+		xr = (xf +x0)/2
+		let fxr = cargaAxial(xr,b,h,dprima,varillas)
+		if (fx0*fxr > 0) {
+			x0 = xr
+			xf = xf
+		} else {
+			x0 = x0
+			xf = xr
+		}
+	}
+	return xr
+}
+function cargaAxial(c,b,h,dprima,varillas) {
+	calcularDeformaciones(c,b,h,dprima,varillas)
+	let a = pnominal(c,b,h,dprima,varillas)
+	return c = a[0]+a[1]+a[2] 
+}
+function descargarTodasLasFiguras() {
+	for (var i = 0; i < figuras.length; i++) {
+		descargarResultadosFigura(i)
+	}
+}
+function descargarResultadosFigura(i) {
+	figuraActual = i
+	document.getElementById('base').value = figuras[figuraActual].b
+	document.getElementById('altura').value = figuras[figuraActual].h
+	document.getElementById('recubrimiento').value = figuras[figuraActual].d*100
+	varillas = figuras[figuraActual].varillas
+	
+	setTimeout(function(){didi(100,b,h,varillas,dprima);Plotly.downloadImage('graficas', {format: 'png', width: 800, height: 600, filename: 'Col_' + (i+1) + 'X+'})}, 2000);
+	setTimeout(function(){didi(100,b,h,varillas,dprima);Plotly.downloadImage('graficas2', {format: 'png', width: 800, height: 600, filename: 'Col_' + (i+1) + 'X-'})}, 2000);
+	setTimeout(function(){didi(100,b,h,varillas,dprima);Plotly.downloadImage('graficas3', {format: 'png', width: 800, height: 600, filename: 'Col_' + (i+1) + 'Y+'})}, 2000);
+	setTimeout(function(){didi(100,b,h,varillas,dprima);Plotly.downloadImage('graficas4', {format: 'png', width: 800, height: 600, filename: 'Col_' + (i+1) + 'Y-'})}, 2000);
+}
+var datosMomento = []
+var combos = []
+var puntosDeEvaluacion = []
+$(document).ready(function(){
+      $("#puntosAEvaluar").change(function(evt){
+            var selectedFile = evt.target.files[0];
+            var reader = new FileReader();
+            reader.onload = function(event) {
+              var data = event.target.result;
+              var workbook = XLSX.read(data, {
+                  type: 'binary'
+              });
+              datosMomento = []
+              combos = []
+              puntosDeEvaluacion = []
+              workbook.SheetNames.forEach(function(sheetName) {
+                  var XL_row_object = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName]);
+                  combos.push(sheetName)
+                  datosMomento.push(XL_row_object)
+                })
+              arreglarDatos()
+              graficarPuntos()
+              document.getElementById('puntosAEvaluar').value = ''
+            };
+            reader.onerror = function(event) {
+              console.error("File could not be read! Code " + event.target.error.code);
+            };
+            reader.readAsBinaryString(selectedFile);
+      });
+});
+function arreglarDatos() {
+	for (var i = 0; i < datosMomento.length; i++) {
+		let p = []
+		let m2 = []
+		let m3 = []
+		let mm2 = []
+		let mm3 = []
+		puntosDeEvaluacion[combos[i]] = []
+		datosMomento[i].forEach((e) => {
+			p.push(e['P']*-1)
+			m2.push(Math.abs(e['M2']))
+			m3.push(Math.abs(e['M3']))
+			mm2.push(Math.abs(e['M2'])*-1)
+			mm3.push(Math.abs(e['M3'])*-1)
+		})
+		puntosDeEvaluacion[combos[i]] = [p,m2,m3,mm2,mm3]
+	}
+}
+function graficarPuntos() {
+	let traces1 = []
+	let traces2 = []
+	let traces3 = []
+	let traces4 = []
+	let traces5= []
+	for (var i = 0; i < combos.length; i++) {
+		let trace1 = {
+			x: puntosDeEvaluacion[combos[i]][2],
+			y: puntosDeEvaluacion[combos[i]][0],
+			mode: 'markers',
+	  		type: 'scatter',
+			name: combos[i]
+		}
+		let trace2 = {
+			x: puntosDeEvaluacion[combos[i]][4],
+			y: puntosDeEvaluacion[combos[i]][0],
+			mode: 'markers',
+	  		type: 'scatter',
+			name: combos[i]
+		}
+		let trace3 = {
+			x: puntosDeEvaluacion[combos[i]][1],
+			y: puntosDeEvaluacion[combos[i]][0],
+			mode: 'markers',
+	  		type: 'scatter',
+			name: combos[i]
+		}
+		let trace4 = {
+			x: puntosDeEvaluacion[combos[i]][3],
+			y: puntosDeEvaluacion[combos[i]][0],
+			mode: 'markers',
+	  		type: 'scatter',
+			name: combos[i]
+		}
+		let trace5 = {
+			y: puntosDeEvaluacion[combos[i]][1].concat(puntosDeEvaluacion[combos[i]][3]).concat(puntosDeEvaluacion[combos[i]][1].concat(puntosDeEvaluacion[combos[i]][3])),
+			x: puntosDeEvaluacion[combos[i]][2].concat(puntosDeEvaluacion[combos[i]][4]).concat(puntosDeEvaluacion[combos[i]][4].concat(puntosDeEvaluacion[combos[i]][2])),
+			z: puntosDeEvaluacion[combos[i]][0].concat(puntosDeEvaluacion[combos[i]][0]).concat(puntosDeEvaluacion[combos[i]][0].concat(puntosDeEvaluacion[combos[i]][0])),
+			mode: 'markers',
+	  		type: 'scatter3d',
+			name: combos[i]
+		}
+		traces1.push(trace1)
+		traces2.push(trace2)
+		traces3.push(trace3)
+		traces4.push(trace4)
+		traces5.push(trace5)
+	}
+	Plotly.addTraces('graficas', traces1)
+	Plotly.addTraces('graficas2', traces2)
+	Plotly.addTraces('graficas3', traces3)
+	Plotly.addTraces('graficas4', traces4)
+	Plotly.addTraces('graficas5', traces5)
+}
+function drawPtos(name,x,y,grafica) {
+	let trace = {
+		x: x,
+		y: y,
+		mode: 'markers',
+  		type: 'scatter',
+		name: name
+	}
+	Plotly.addTraces(grafica, [trace]);
+}
+function soyDasus(b,h,dprima,varillas) {
+	let c4 = encontrarCVIGA(b,h,dprima,varillas)
+	calcularDeformaciones(c4,b,h,dprima,varillas)
+	let phi = calcularPhi(varillas)
+	let a = pnominal(c4,b,h,dprima,varillas)
+	let p = mnominal(c4,b,h,dprima,varillas)
+	return ['Momento Nominal: ' + (p[0]+p[1]+p[2]),'Momento Nominal con phi: ' + ((p[0]+p[1]+p[2])*phi), 'Phi: ' + phi, 'C: ' + c4]
+}
